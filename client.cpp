@@ -1,4 +1,3 @@
-
 // Client side C/C++ program to demonstrate Socket
 // programming
 #include <arpa/inet.h>
@@ -138,17 +137,56 @@ void formatFiles(string* fileNames) {
   }
 }
 
+bool compareFiles(string fileName1, string fileName2) {
+  ifstream file1(fileName1);
+  ifstream file2(fileName2);
+  char buffer1[4096];
+  char buffer2[4096];
+  do {
+    file1.read(buffer1, sizeof(buffer1) - 1);
+    file2.read(buffer2, sizeof(buffer2) - 1);
+    if (strcmp(buffer1, buffer2) != 0) {
+      file1.close();
+      file2.close();
+      return false;
+    }
+  } while (!file1.eof() && !file2.eof());
+  if (file1.eof() && file2.eof()) {
+    file1.close();
+    file2.close();
+    return true;
+  }
+  file1.close();
+  file2.close();
+  return false;
+}
+
+bool areAllFilesDifferent() {
+  string serverFiles[5] = {"./CopiedFilesFromServer/serverFile1.txt", "./CopiedFilesFromServer/serverFile2.txt",
+                           "./CopiedFilesFromServer/serverFile3.txt",
+                           "./CopiedFilesFromServer/serverFile4.txt", "./CopiedFilesFromServer/serverFile5.txt"};
+  string clientFiles[5] = {"./CopiedFilesFromServer/clientFile1.txt", "./CopiedFilesFromServer/clientFile2.txt",
+                             "./CopiedFilesFromServer/clientFile3.txt",
+                             "./CopiedFilesFromServer/clientFile4.txt", "./CopiedFilesFromServer/clientFile5.txt"};
+  for (int i = 0; i < 5; i++) {
+    for (int j = 0; j < 5; j++) {
+      if (compareFiles(serverFiles[i], clientFiles[j])) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 int main(int argc, char const* argv[])
 {
     string* fileNames = getFileNames();
     for (int i = 0; i < 5; i++) {
-      cout<<"File Name #"<<(i + 1)<<*(fileNames + i)<<endl;
+      cout<<"File Name #"<<(i + 1)<<": "<<*(fileNames + i)<<endl;
     }
     cout<<"Found all files!"<<endl;
     int status, valread, client_fd;
     struct sockaddr_in serv_addr;
-    char* hello = "Hello from client";
-    char buffer[1024] = { 0 };
     cout<<"Waiting for Server to connect!"<<endl;
     do {
       if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -175,8 +213,8 @@ int main(int argc, char const* argv[])
     cout<<"Connected to server!"<<endl;
     writeFiles(client_fd, fileNames);
     readFiles(client_fd);
-    formatFiles(fileNames);
-    // closing the connected socket
     close(client_fd);
+    formatFiles(fileNames);
+    cout<<"Are files different?: "<<boolalpha<<areAllFilesDifferent()<<endl;
     return 0;
 }

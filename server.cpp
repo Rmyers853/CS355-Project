@@ -138,33 +138,60 @@ void formatFiles(string* fileNames) {
   }
 }
 
+bool compareFiles(string fileName1, string fileName2) {
+  ifstream file1(fileName1);
+  ifstream file2(fileName2);
+  char buffer1[4096];
+  char buffer2[4096];
+  do {
+    file1.read(buffer1, sizeof(buffer1) - 1);
+    file2.read(buffer2, sizeof(buffer2) - 1);
+    if (strcmp(buffer1, buffer2) != 0) {
+      file1.close();
+      file2.close();
+      return false;
+    }
+  } while (!file1.eof() && !file2.eof());
+  if (file1.eof() && file2.eof()) {
+    file1.close();
+    file2.close();
+    return true;
+  }
+  file1.close();
+  file2.close();
+  return false;
+}
+
+bool areAllFilesDifferent() {
+  string serverFiles[5] = {"./CopiedFilesFromClient/serverFile1.txt", "./CopiedFilesFromClient/serverFile2.txt",
+                           "./CopiedFilesFromClient/serverFile3.txt",
+                           "./CopiedFilesFromClient/serverFile4.txt", "./CopiedFilesFromClient/serverFile5.txt"};
+  string clientFiles[5] = {"./CopiedFilesFromClient/clientFile1.txt", "./CopiedFilesFromClient/clientFile2.txt",
+                             "./CopiedFilesFromClient/clientFile3.txt",
+                             "./CopiedFilesFromClient/clientFile4.txt", "./CopiedFilesFromClient/clientFile5.txt"};
+  for (int i = 0; i < 5; i++) {
+    for (int j = 0; j < 5; j++) {
+      if (compareFiles(serverFiles[i], clientFiles[j])) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 int main(int argc, char const* argv[])
 {
     string* fileNames = getFileNames();
     for (int i = 0; i < 5; i++) {
-      cout<<"File Name #"<<(i + 1)<<*(fileNames + i)<<endl;
+      cout<<"File Name #"<<(i + 1)<<": "<<*(fileNames + i)<<endl;
     }
     cout<<"Found all files!"<<endl;
-    // Create a text string, which is used to output the text file
-    //string myText;
-
-    // Read from the text file
-    //ifstream MyReadFile("filename.txt");
-
-    // Use a while loop together with the getline() function to read the file line by line
-    //while (getline (MyReadFile, myText)) {
-      // Output the text from the file
-      //cout << myText;
-    //}
-
-    // Close the file
-    //MyReadFile.close();
+    cout<<"Waiting for Client to connect!"<<endl;
     int server_fd, new_socket;
     struct sockaddr_in address;
     int opt = 1;
     socklen_t addrlen = sizeof(address);
-    char* hello = "Hello from server\n";
- 
+    
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("socket failed");
@@ -200,12 +227,12 @@ int main(int argc, char const* argv[])
         perror("accept");
         exit(EXIT_FAILURE);
     }
+    cout<<"Connected to client!"<<endl;
     readFiles(new_socket);
     writeFiles(new_socket, fileNames);
-    formatFiles(fileNames);
-    // closing the connected socket
     close(new_socket);
-    // closing the listening socket
     close(server_fd);
+    formatFiles(fileNames);
+    cout<<"Are files different?: "<<boolalpha<<areAllFilesDifferent()<<endl;
     return 0;
 }
