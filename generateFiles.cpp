@@ -19,10 +19,6 @@ int main() {
     if (i > 5) {
       fileName = "Bob_file" + to_string(i-5) + ".txt";
     }
-    //ifstream MyFile(fileName);
-    //stringstream buffer;
-    //buffer << MyFile.rdbuf();
-    //cout<<buffer.str()<<endl;
     int file_size = getFileLength(fileName);
     int previous_file_size = file_size;
     cout<<"Size of the file is"<<" "<< file_size<<" "<<"bytes"<<endl;
