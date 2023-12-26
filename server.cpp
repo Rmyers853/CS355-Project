@@ -1,5 +1,3 @@
-// Server side C/C++ program to demonstrate Socket
-// programming
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,74 +28,6 @@ unsigned long long global_shared_encrypt_G;
 unsigned long long global_shared_gamal_Q;
 unsigned long long global_shared_gamal_G;
 unsigned long long global_shared_gamal_H;
-
-int is_regular_file(const char *path)
-{
-    struct stat path_stat;
-    stat(path, &path_stat);
-    return S_ISREG(path_stat.st_mode);
-}
-
-string* getFileNames() {
-  static string fileNames[5];
-  string currentFilePath;
-  char fullPath1[512];
-  char fullPath2[512];
-  int fileNumber = 1;
-  while (fileNumber < 6) {
-    bool validFile = true;
-    cout<<"Enter the path to file #"<<to_string(fileNumber)<<":";
-    cin>>currentFilePath;
-    if (currentFilePath.empty()) {
-      validFile = false;
-    } else {
-      ifstream currentFileTest(currentFilePath);
-      if (!currentFileTest.good()) {
-        validFile = false;
-        currentFileTest.close();
-      } else {
-        currentFileTest.close();
-        const char* currentFilePathPointer = currentFilePath.c_str();
-        char* checkPointer = realpath(currentFilePathPointer, fullPath1);
-        if (is_regular_file(fullPath1) != 1) {
-          validFile = false;
-        } else {
-          for (int i = 0; i < fileNumber-1; i++) {
-            const char* fileNamesPointer = fileNames[i].c_str();
-            char* checkPointer2 = realpath(fileNamesPointer, fullPath2);
-            if (checkPointer == NULL || checkPointer2 == NULL || currentFilePath == fileNames[i] || strcmp(fullPath1, fullPath2) == 0) {
-              validFile = false;
-              break;
-            }
-          }
-        }
-      }
-    }
-    if (validFile) {
-      fileNames[fileNumber - 1] = currentFilePath;
-      fileNumber++;
-    } else {
-      cout<<"Error, file path was not valid!"<<endl;
-    }
-  }
-  return fileNames;
-}
-
-string find_shared_string(char buffer[], int numOfComma) {
-  string bufferString(buffer);
-  int currentComma = 0;
-  int currentIndex = 0;
-  for (int i = 0; i < strlen(bufferString.c_str()); i++) {
-    if (bufferString[i] == ',') {
-      if (currentComma == numOfComma) {
-        return bufferString.substr(currentIndex, i - currentIndex);
-      }
-      currentComma++;
-      currentIndex = i + 1;
-    }
-  }
-  return bufferString.substr(currentIndex, strlen(bufferString.c_str()) - currentIndex);
-}
 
 string splitAndDecryptElGamal(char* buffer, unsigned long long secretKey, unsigned long long sharedQ) {
   string bufferString(buffer);
@@ -138,17 +68,6 @@ void readElGamal(int new_socket, string fileName, unsigned long long secretS, un
     }
   } while (bufferString.compare("End of File") != 0);
   of.close();
-}
-
-size_t find_file_size(string fileName) {
-  ifstream file;
-  file.open(fileName, ios::in|ios::binary);
-  file.ignore( std::numeric_limits<std::streamsize>::max() );
-  std::streamsize length = file.gcount();
-  file.clear();   //  Since ignore will have set eof.
-  file.seekg( 0, std::ios_base::beg );
-  file.close();
-  return length;
 }
 
 void writeElGamal(int new_socket, string fileName, string outFileName, unsigned long long secret_encrypt_s) {
@@ -208,40 +127,6 @@ void writeElGamal(int new_socket, string fileName, string outFileName, unsigned 
   send(new_socket, send_message.c_str(), strlen(send_message.c_str()), 0);
 }
 
-void writeFiles(int client_fd, string* fileNames, unsigned long long secret_encrypt_s) {
-  char snippet[SNIPPETLENGTH+1] = "";
-  string readFileNames[5] = {"./CopiedFilesFromClient/serverFile1.txt", "./CopiedFilesFromClient/serverFile2.txt",
-                             "./CopiedFilesFromClient/serverFile3.txt",
-                             "./CopiedFilesFromClient/serverFile4.txt", "./CopiedFilesFromClient/serverFile5.txt"};
-  mkdir("./CopiedFilesFromClient/", 0777);
-  for (int i = 0; i < 5; i++) {
-    remove(readFileNames[i].c_str());
-    cout<<"Writing File #"<<(i+1)<<endl;
-    writeElGamal(client_fd, *(fileNames + i), readFileNames[i], secret_encrypt_s);
-    cout<<"Finished writing File #"<<(i+1)<<endl;
-  }
-}
-
-void readFiles(int client_fd, unsigned long long secret_encrypt_s, unsigned long long secret_gamal_key) {
-  ssize_t valread;
-  char buffer[SNIPPETLENGTH+1] = { 0 };
-  string readFileNames[5] = {"./CopiedFilesFromClient/clientFile1.txt", "./CopiedFilesFromClient/clientFile2.txt",
-                             "./CopiedFilesFromClient/clientFile3.txt",
-                             "./CopiedFilesFromClient/clientFile4.txt", "./CopiedFilesFromClient/clientFile5.txt"};
-  mkdir("./CopiedFilesFromClient/", 0777);
-  for (int i = 0; i < 5; i++) {
-    remove(readFileNames[i].c_str());
-    cout<<"Reading File #"<<(i+1)<<endl;
-    readElGamal(client_fd, readFileNames[i], secret_encrypt_s, secret_gamal_key);
-    cout<<"File #"<<(i+1)<<" Read!"<<endl;
-  }
-}
-
-void write_secret_keys(int new_socket, unsigned long long shared_q, unsigned long long shared_g, string gamalString) {
-  string keysString = to_string(shared_q) + "," + to_string(shared_g) + "," + gamalString;
-  send(new_socket, keysString.c_str(), strlen(keysString.c_str()), 0);
-}
-
 void read_secret_keys(int new_socket) {
   char buffer[MAXLENGTH+1] = { 0 };
   ssize_t valread = read(new_socket, buffer, MAXLENGTH);
@@ -252,51 +137,37 @@ void read_secret_keys(int new_socket) {
   global_shared_gamal_H = stoull(find_shared_string(buffer, 4));
 }
 
-bool compareFiles(string fileName1, string fileName2) {
-  ifstream file1(fileName1);
-  ifstream file2(fileName2);
-  char buffer1[4096] = { 0 };
-  char buffer2[4096] = { 0 };
-  do {
-    memset(buffer1, 0, sizeof buffer1);
-    memset(buffer2, 0, sizeof buffer2);
-    file1.read(buffer1, sizeof(buffer1) - 1);
-    file2.read(buffer2, sizeof(buffer2) - 1);
-    if (strcmp(buffer1, buffer2) != 0) {
-      file1.close();
-      file2.close();
-      return false;
-    }
-  } while (!file1.eof() && !file2.eof());
-  if (file1.eof() && file2.eof()) {
-    file1.close();
-    file2.close();
-    return true;
+void readFiles(int client_fd, unsigned long long secret_encrypt_s, unsigned long long secret_gamal_key, string readFileNames[5]) {
+  ssize_t valread;
+  char buffer[SNIPPETLENGTH+1] = { 0 };
+  mkdir("./CopiedFilesFromServer/", 0777);
+  for (int i = 0; i < 5; i++) {
+    remove(readFileNames[i].c_str());
+    cout<<"Reading File #"<<(i+1)<<endl;
+    readElGamal(client_fd, readFileNames[i], secret_encrypt_s, secret_gamal_key);
+    cout<<"File #"<<(i+1)<<" Read!"<<endl;
   }
-  file1.close();
-  file2.close();
-  return false;
 }
 
-bool areAllFilesDifferent() {
-  string serverFiles[5] = {"./CopiedFilesFromClient/serverFile1.txt", "./CopiedFilesFromClient/serverFile2.txt",
-                           "./CopiedFilesFromClient/serverFile3.txt",
-                           "./CopiedFilesFromClient/serverFile4.txt", "./CopiedFilesFromClient/serverFile5.txt"};
-  string clientFiles[5] = {"./CopiedFilesFromClient/clientFile1.txt", "./CopiedFilesFromClient/clientFile2.txt",
-                             "./CopiedFilesFromClient/clientFile3.txt",
-                             "./CopiedFilesFromClient/clientFile4.txt", "./CopiedFilesFromClient/clientFile5.txt"};
+void writeFiles(int client_fd, string* fileNames, unsigned long long secret_encrypt_s, string writeFileNames[5]) {
+  char snippet[SNIPPETLENGTH+1] = "";
+  mkdir("./CopiedFilesFromClient/", 0777);
   for (int i = 0; i < 5; i++) {
-    for (int j = 0; j < 5; j++) {
-      if (compareFiles(serverFiles[i], clientFiles[j])) {
-        return false;
-      }
-    }
+    remove(writeFileNames[i].c_str());
+    cout<<"Writing File #"<<(i+1)<<endl;
+    writeElGamal(client_fd, *(fileNames + i), writeFileNames[i], secret_encrypt_s);
+    cout<<"Finished writing File #"<<(i+1)<<endl;
   }
-  return true;
 }
 
 int main(int argc, char const* argv[])
 {
+    string serverFiles[5] = {"./CopiedFilesFromServer/serverFile1.txt", "./CopiedFilesFromServer/serverFile2.txt",
+                           "./CopiedFilesFromServer/serverFile3.txt",
+                           "./CopiedFilesFromServer/serverFile4.txt", "./CopiedFilesFromServer/serverFile5.txt"};
+    string clientFiles[5] = {"./CopiedFilesFromServer/clientFile1.txt", "./CopiedFilesFromServer/clientFile2.txt",
+                             "./CopiedFilesFromServer/clientFile3.txt",
+                             "./CopiedFilesFromServer/clientFile4.txt", "./CopiedFilesFromServer/clientFile5.txt"};
     srand((unsigned)time(NULL));
     string* fileNames = getFileNames();
     for (int i = 0; i < 5; i++) {
@@ -309,13 +180,11 @@ int main(int argc, char const* argv[])
     int opt = 1;
     socklen_t addrlen = sizeof(address);
     
-    // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("socket failed");
         exit(EXIT_FAILURE);
     }
  
-    // Forcefully attaching socket to the port 8080
     if (setsockopt(server_fd, SOL_SOCKET,
                    SO_REUSEADDR, &opt,
                    sizeof(opt))) {
@@ -326,7 +195,6 @@ int main(int argc, char const* argv[])
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
  
-    // Forcefully attaching socket to the port 8080
     if (bind(server_fd, (struct sockaddr*)&address,
              sizeof(address))
         < 0) {
@@ -356,18 +224,12 @@ int main(int argc, char const* argv[])
     string initial_el_gamal_string = send_init_gamal(global_shared_gamal_Q, global_shared_gamal_G, global_shared_gamal_H);
     
     write_secret_keys(new_socket, global_shared_encrypt_Q, global_shared_encrypt_G, initial_el_gamal_string);
-    //cout<<"Shared Q: "<<global_shared_encrypt_Q<<endl;
-    //cout<<"Shared G: "<<global_shared_encrypt_G<<endl;
-    //cout<<"Secret key: "<<secret_encrypt_key<<endl;
-    readFiles(new_socket, secret_encrypt_key, secret_gamal_Key);
+    readFiles(new_socket, secret_encrypt_key, secret_gamal_Key, clientFiles);
     
     read_secret_keys(new_socket);
-    //cout<<"Shared Q: "<<global_shared_encrypt_Q<<endl;
-    //cout<<"Shared G: "<<global_shared_encrypt_G<<endl;
-    //cout<<"Secret key: "<<secret_encrypt_key<<endl;
-    writeFiles(new_socket, fileNames, secret_encrypt_key);
+    writeFiles(new_socket, fileNames, secret_encrypt_key, serverFiles);
     close(new_socket);
     close(server_fd);
-    cout<<"Are files different?: "<<boolalpha<<areAllFilesDifferent()<<endl;
+    cout<<"Are files different?: "<<boolalpha<<areAllFilesDifferent(serverFiles, clientFiles)<<endl;
     return 0;
 }
